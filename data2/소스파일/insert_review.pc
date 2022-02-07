@@ -1,0 +1,200 @@
+// 마지막고침 : 2021.12.03
+// 마지막작성자: 권민주
+/*-----------------------------------------------
+dynstmt_insert_xy.pc
+화면의 특정 위치에서 사용자 입력을 받은 후 테이블에 
+insert 함
+-------------------------------------------------*/
+#define _CRT_SECURE_NO_WARNINGS
+
+//-----------------------------------------
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <conio.h>
+
+/* for oracle */
+#include <sqlda.h>
+#include <sqlca.h>
+#include <sqlcpr.h>
+
+//#ifdef WIN32
+#include < windows.h >
+/*---------------  화면 커서 위치 제어 ----------------------*/
+void gotoxy(int x, int y) ;
+void getxy(int *x, int *y) ;
+void clrscr(void) ;
+/*-----------------------------------------------------------*/
+#define getch() _getch()
+
+void DB_connect();
+void Insert_tuple();
+void rtrim();
+
+void sql_error();
+
+EXEC SQL BEGIN DECLARE SECTION;
+	VARCHAR uid[80];
+	VARCHAR pwd[20];
+EXEC SQL END DECLARE SECTION;
+
+
+void main()
+{
+	DB_connect();
+	Insert_tuple();
+	EXEC SQL COMMIT WORK RELEASE ;
+	getch();
+}
+void DB_connect()
+{
+   /* 아이디와 패스워드 수정해서 넣으세요*/
+    strcpy((char *)uid.arr,"a20183202@//sedb.deu.ac.kr:1521/orcl");
+    uid.len = (short) strlen((char *)uid.arr);
+    strcpy((char *)pwd.arr,"20183202");
+    pwd.len = (short) strlen((char *)pwd.arr);
+
+    EXEC SQL CONNECT :uid IDENTIFIED BY :pwd;
+
+	// connection이 실패했을경우의 처리부분
+
+    if (sqlca.sqlcode != 0 && sqlca.sqlcode != -1405){ 
+		printf("\7Cconnect error: %s", sqlca.sqlerrm.sqlerrmc);
+		getch();
+		exit(-1);
+    }
+
+    printf("Oracle Connect SUCCESS by %s\n", uid.arr);
+}
+
+void Insert_tuple()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar reviewnum[3];
+    float score;
+    varchar departure[4];
+    varchar arrival[4];
+    varchar user_id[12];
+    varchar memo[100];
+
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   
+
+   /* Register sql_error() as the error handler. */
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   clrscr();
+
+   /* 데이터 입력 */
+    gotoxy(20,5) ;
+
+    printf(" [ 추가할 데이터를 입력하세요 ]\n\n");   
+   
+    printf("          리뷰번호:\n");
+    printf("\n");
+    printf("          별점:\n");
+    printf("\n");
+    printf("          출발지:\n");
+    printf("\n");
+    printf("          도착지:\n");
+    printf("\n");
+    printf("          사용자:\n");
+    printf("\n");
+    printf("          메모:\n");
+
+
+   /* 리뷰번호 입력 */
+    gotoxy(20,7)  ; 
+    gets(reviewnum.arr);
+    reviewnum.len = strlen(reviewnum.arr);
+    
+   /* 별점 입력 */
+    gotoxy(17,9)  ;
+    scanf("%f%*c", &score);
+
+   /* 출발지 입력 */
+    gotoxy(18,11) ;
+    gets(departure.arr);
+    departure.len = strlen(departure.arr);
+
+   /* 도착지 입력 */
+    gotoxy(18,13) ;
+    gets(arrival.arr);
+    arrival.len = strlen(arrival.arr);
+
+   /* 사용자 입력 */
+    gotoxy(18,15) ;
+    gets(user_id.arr);
+    user_id.len = strlen(user_id.arr);
+
+   /* 메모 입력 */
+    gotoxy(17,17) ;
+    gets(memo.arr);
+    memo.len = strlen(memo.arr);
+	
+
+    sprintf(dynstmt,"insert into review values ( '%s', %0.1f, '%s', '%s', '%s', '%s')" ,reviewnum.arr, score, departure.arr, arrival.arr, user_id.arr, memo.arr);
+
+    printf("stmt:%s\n", dynstmt);
+   /* 실행시킬 SQL 문장*/
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+    printf("Insert Success\n");
+    EXEC SQL COMMIT WORK ;
+}
+
+/* --------------------------------------------------------------------------
+void sql_error()
+
+   errrpt prints the ORACLE error msg and number.
+-------------------------------------------------------------------------- */
+void sql_error(char *msg)
+{
+    char err_msg[128];
+    size_t buf_len, msg_len;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+    printf("\n%s\n", msg);
+    buf_len = sizeof (err_msg);
+    sqlglm(err_msg, &buf_len, &msg_len);
+    printf("%.*s\n", msg_len, err_msg);
+
+    getch();
+    EXEC SQL ROLLBACK WORK ;
+
+}
+
+/*---------------  화면 커서 제어 함수 --------------------*/
+#define STD_HANDLE GetStdHandle(STD_OUTPUT_HANDLE)
+
+void gotoxy(int x, int y)
+{
+    COORD Cur= {(SHORT)x, (SHORT) y};
+
+    SetConsoleCursorPosition(STD_HANDLE, Cur);
+}
+
+void getxy(int *x, int *y)
+{
+    CONSOLE_SCREEN_BUFFER_INFO Buf ;
+
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Buf);
+    *x = (int)Buf.dwCursorPosition.X ;
+    *y = (int)Buf.dwCursorPosition.Y ;
+ 
+}
+
+void clrscr(void)
+{
+    COORD Cur= {0, 0};
+    unsigned long dwLen;
+
+    FillConsoleOutputCharacter(STD_HANDLE, ' ', 80*25, Cur, &dwLen);
+}
+
+/*---------------------------------------------------------*/

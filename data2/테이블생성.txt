@@ -1,0 +1,53 @@
+//마지막 수정일: 21.12.03
+
+drop table REVIEW purge;
+drop table BUSSTOP purge;
+drop table BUS purge;
+drop table PERSON purge;
+
+create table PERSON
+(USER_ID VARCHAR(12) primary key,
+USER_PW VARCHAR(20));
+
+create table BUS
+(BUSNUM VARCHAR(6) primary key,
+BUSWAY VARCHAR(30),
+BUSTIME VARCHAR(12),
+BUSTERM VARCHAR(3));
+
+create table BUSSTOP
+(STOPNUM VARCHAR(4) primary key,
+STOPNAME VARCHAR(10));
+
+create table REVIEW
+(REVIEWNUM VARCHAR(3) primary key,
+SCORE FLOAT(4) default 0 check(score<=5.0),
+DEPARTURE VARCHAR(4),
+ARRIVAL VARCHAR(4),
+USER_ID VARCHAR(12),
+MEMO VARCHAR(100),
+foreign key(DEPARTURE) references BUSSTOP(STOPNUM),
+foreign key (ARRIVAL) references BUSSTOP(STOPNUM),
+foreign key (USER_ID) references PERSON(USER_ID));
+
+insert into PERSON
+values('user1', 'pw');
+
+insert into BUS
+values('6', '1-2-4-5-6-7-10-12', '06:30~23:00', 8);
+insert into bus
+values('7','3-5-6-8-9-11-15-19', '05:40~23:20', 10);
+
+insert into BUSSTOP
+values('1', 'a');
+insert into BUSSTOP
+values('5', 'e');
+insert into BUSSTOP
+values('6', 'c');
+insert into BUSSTOP
+values('8', 'd');
+insert into BUSSTOP
+values('11', 'f');
+
+insert into review
+values('001', 4.7, '1', '5', 'user1', 'good');

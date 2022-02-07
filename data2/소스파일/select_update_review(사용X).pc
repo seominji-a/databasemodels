@@ -1,0 +1,220 @@
+// 마지막고침 : 2021.12.04
+// 마지막작성자: 권민주
+// win32 Visual C 2010 이상컴파일시 추가
+// 프로그램 가장 첫 줄에 추가할 것
+#define _CRT_SECURE_NO_WARNINGS
+//-------------------------------------------
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <conio.h>
+
+/* for oracle */
+#include <sqlda.h>
+#include <sqlca.h>
+#include <sqlcpr.h>
+/*------------*/
+
+#define getch() _getch()
+
+void DB_connect();
+void Select_tuple();
+void Update_tuple();
+
+void sql_error();
+
+EXEC SQL BEGIN DECLARE SECTION;
+	VARCHAR uid[80];
+	VARCHAR pwd[20];
+EXEC SQL END DECLARE SECTION;
+
+char Reviewnum[100], Departure[4], Arrival[4], User_id[12], Memo[100];
+float Score;
+
+void main()
+{
+	DB_connect();
+	Select_tuple();
+	Update_tuple();
+	getch();
+	EXEC SQL COMMIT WORK RELEASE ;
+}
+void DB_connect()
+{
+   strcpy((char *)uid.arr,"a20183202@//sedb.deu.ac.kr:1521/orcl");
+   uid.len = (short) strlen((char *)uid.arr);
+   strcpy((char *)pwd.arr,"20183202");
+   pwd.len = (short) strlen((char *)pwd.arr);
+
+   EXEC SQL CONNECT :uid IDENTIFIED BY :pwd;
+
+	// connection이 실패했을경우의 처리부분
+
+	if (sqlca.sqlcode != 0 && sqlca.sqlcode != -1405){ 
+		printf("Connect error: %s", sqlca.sqlerrm.sqlerrmc);
+		getch();
+		exit(-1);
+	}
+
+    printf("Oracle Connect SUCCESS by %s\n", uid.arr);
+}
+
+void Update_tuple()
+{
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+   char dynstmt[1000];
+
+EXEC SQL END DECLARE SECTION;
+
+    char  reviewnum[3];
+    float  score;
+    char  departure[4];
+    char  arrival[4];
+    char  user_id[12];
+    char memo[100];
+  
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+   printf(" 수정할 데이터를 입력하세요 !!\n");   
+
+   printf("%s %0.1f %s %s %s %s\n", Reviewnum, Score, Departure, Arrival, User_id, Memo);
+
+   printf("리뷰번호:");
+   gets(reviewnum);
+   if( reviewnum[0] == '\0' ){
+       printf("%s\n", Reviewnum);
+       strcpy(reviewnum, Reviewnum);
+   }
+
+   printf("별점:");
+   scanf("%f%*c", &score); 
+   if( score== 0.0 ){
+        printf("%0.1f\n", Score);
+        Score=score;
+   }
+
+   printf("출발지:");
+   gets(departure);
+   if( departure[0]== '\0' ){
+        printf("%s\n", Departure);
+        strcpy(departure, Departure);
+   }
+
+   printf("도착지:");
+   gets(arrival);
+   if( arrival[0]== '\0' ){
+        printf("%s\n", Arrival);
+        strcpy(arrival, Arrival);
+   }
+
+   printf("사용자:");
+   gets(user_id);
+   if(user_id[0]== '\0' ){
+        printf("%s\n", User_id);
+        strcpy(user_id, User_id);
+   }
+
+   printf("리뷰 내용:");
+   gets(memo);
+   if( memo[0]== '\0' ){
+        printf("%s\n", Memo);
+        strcpy(memo, Memo);
+   }
+
+   sprintf(dynstmt,"update review set reviewnum = '%s', score = %0.1f, departure = '%s', arrival = '%s', user_id = '%s', memo = '%s' where reviewnum = '%s' ", reviewnum, score, departure, arrival, user_id, memo, Reviewnum);
+   printf("stmt:%s\n", dynstmt);
+   
+   EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+   printf("Update Success\n");
+   EXEC SQL COMMIT WORK ; 
+
+}
+
+
+void Select_tuple()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar  reviewnum[3];
+    float  score=0.0;
+    varchar  departure[4];
+    varchar  arrival[4];
+    varchar  user_id[12];
+    varchar memo[100];
+
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+    
+    char no_temp1[10];
+
+     
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+   
+      
+    printf("업데이트할 리뷰번호를 입력하세요:");
+    fgets(no_temp1, 10, stdin); 
+    no_temp1[strlen(no_temp1)-1] = '\0' ;  
+   
+   
+    sprintf(dynstmt,"SELECT reviewnum, score, departure, arrival, user_id, memo  FROM review where reviewnum = '%s'", no_temp1) ;
+   
+    EXEC SQL PREPARE S FROM :dynstmt ;
+
+    EXEC SQL DECLARE c_cursor CURSOR FOR S ; 
+
+    EXEC SQL OPEN c_cursor ; 
+
+    EXEC SQL WHENEVER NOT FOUND do break;
+    for(;;)
+    {
+        EXEC SQL FETCH c_cursor INTO :reviewnum, :score, :departure, :arrival, :user_id, :memo ;
+	    //맨마지막거 \0으로 주고 문자열 배열처럼 만들기
+	    reviewnum.arr[reviewnum.len] = '\0';
+	    //score = '\0';
+	    departure.arr[departure.len] = '\0';
+	    arrival.arr[arrival.len] = '\0';
+	    user_id.arr[user_id.len] = '\0';
+	    memo.arr[memo.len] = '\0';
+
+	    printf("리뷰번호:%s 별점:%0.1f 출발지:%s 도착지:%s 사용자:%s, 메모:%s \n", reviewnum.arr, score, departure.arr, arrival.arr, user_id.arr, memo.arr);
+    }
+	//전역변수에 읽어온 값 집어 넣기
+                   strcpy(Reviewnum, reviewnum.arr);
+	score = Score;
+	//strcpy(score, score.arr);
+	strcpy(Departure, departure.arr);
+	strcpy(Arrival, arrival.arr);
+	strcpy(User_id, user_id.arr);
+	strcpy(Memo, memo.arr);
+
+    printf("match tuple reviewnum : %d\n", sqlca.sqlerrd[2]);
+
+    EXEC SQL CLOSE c_cursor; 
+   
+}
+
+/* --------------------------------------------------------------------------
+void sql_error()
+
+   errrpt prints the ORACLE error msg and number.
+-------------------------------------------------------------------------- */
+void sql_error(char *msg)
+{
+    char err_msg[128];
+    size_t buf_len, msg_len;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+    printf("\n%s\n", msg);
+    buf_len = sizeof (err_msg);
+    sqlglm(err_msg, &buf_len, &msg_len);
+    printf("%.*s\n", msg_len, err_msg);
+
+    getch();
+
+    EXEC SQL ROLLBACK WORK ;
+    //exit(EXIT_FAILURE);
+}

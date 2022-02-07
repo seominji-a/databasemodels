@@ -1,0 +1,879 @@
+// 마지막고침 : 2020.11.17
+/*-----------------------------------------------
+dynstmt_insert_person.pc
+화면의 특정 위치에서 사용자 입력을 받은 후 테이블에 
+insert 함
+-------------------------------------------------*/
+#define _CRT_SECURE_NO_WARNINGS
+
+//-----------------------------------------
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <conio.h>
+
+/* for oracle */
+#include <sqlda.h>
+#include <sqlca.h>
+#include <sqlcpr.h>
+
+//#ifdef WIN32
+#include < windows.h >
+/*---------------  화면 커서 위치 제어 ----------------------*/
+void gotoxy(int x, int y) ;
+void getxy(int *x, int *y) ;
+void clrscr(void) ;
+/*-----------------------------------------------------------*/
+#define getch() _getch()
+
+void DB_connect();
+void Insert_tuple_person();
+void Insert_tuple_busstop();
+void Insert_tuple_bus();
+void insert_tuple_review();
+void rtrim();
+void select_tuple_person();
+void delete_tuple_person();
+void Select_tuple(char *no);
+void delete_tuple_bus();
+void print_screen(char fname[]);
+void select_tuple_bus();
+void select_tuple_way();
+void print_screens(char fname[]);
+void delete_tuple_review();
+
+
+int good=0;
+void sql_error();
+
+EXEC SQL BEGIN DECLARE SECTION;
+	VARCHAR uid[80];
+	VARCHAR pwd[20];
+EXEC SQL END DECLARE SECTION;
+
+void main()
+{
+	DB_connect();	
+            int choice=0;
+	printf("1->login 2->no login: ");
+	scanf_s("%d%*c", &choice);
+	if(choice==1){
+		select_tuple_person();
+		//EXEC SQL COMMIT WORK RELEASE ;
+		getch();
+		if(good==1){
+			printf("1->manage account 2->manage bus, way 3->manage review: ");
+			int m=0;
+			scanf_s("%d%*c", &m);
+			if(m==1){
+				printf("1->insert_person 2->delete_person: ");
+				int x=0;
+				scanf_s("%d%*c", &x);
+				if(x==1){
+					Insert_tuple_person();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				} else if(x==2){ 
+					delete_tuple_person();
+					getch();
+					EXEC SQL COMMIT WORK RELEASE ;
+				}
+			}
+			else if(m==2){
+				printf("1->insert bus 2->delete bus 3->select bus 4->select way 5->insert busstop: ");
+				int x=0;
+				scanf_s("%d%*c", &x);
+				if(x==1){
+					Insert_tuple_bus();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				} else if(x==2){ 
+					delete_tuple_bus();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				} else if(x==3){ 
+					select_tuple_bus();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				}  else if(x==4){ 
+					select_tuple_way();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				}  else if(x==5){ 
+					Insert_tuple_busstop();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				}
+			}
+			else if(m==3){
+				printf("1->insert review 2->delete review: ");
+				int x=0;
+				scanf_s("%d%*c", &x);
+				if(x==1){
+					insert_tuple_review();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				} else if(x==2){ 
+					delete_tuple_review();
+					EXEC SQL COMMIT WORK RELEASE ;
+					getch();
+				}
+			}
+		}
+	}
+}
+void DB_connect()
+{
+   /* 아이디와 패스워드 수정해서 넣으세요*/
+    strcpy((char *)uid.arr,"a20183202@//sedb.deu.ac.kr:1521/orcl");
+    uid.len = (short) strlen((char *)uid.arr);
+    strcpy((char *)pwd.arr,"20183202");
+    pwd.len = (short) strlen((char *)pwd.arr);
+
+    EXEC SQL CONNECT :uid IDENTIFIED BY :pwd;
+
+	// connection이 실패했을경우의 처리부분
+
+    if (sqlca.sqlcode != 0 && sqlca.sqlcode != -1405){ 
+		printf("\7Cconnect error: %s", sqlca.sqlerrm.sqlerrmc);
+		getch();
+		exit(-1);
+    }
+
+    printf("Oracle Connect SUCCESS by %s\n", uid.arr);
+}
+
+void Insert_tuple_person()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar user_id[12];
+    varchar user_pw[20];
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   /* Register sql_error() as the error handler. */
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   clrscr();
+
+   /* 데이터 입력 */
+    gotoxy(20,5) ;
+
+    printf(" [ add person ]\n\n");   
+   
+    printf("          id:\n");
+    printf("\n");
+    printf("          pw:\n");
+
+
+   /* 아이디 입력 */
+    gotoxy(20,7)  ; 
+    gets(user_id.arr);
+    user_id.len = strlen(user_id.arr);
+    
+   /* 패스워드 입력 */
+
+    gotoxy(20,9)  ;
+    gets(user_pw.arr);
+    user_pw.len = strlen(user_pw.arr);
+    sprintf(dynstmt,"insert into person values ( '%s', '%s')" ,user_id.arr, user_pw.arr);
+
+    printf("stmt:%s\n", dynstmt);
+   /* 실행시킬 SQL 문장*/
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+    printf("Insert Success\n");
+    EXEC SQL COMMIT WORK ;
+}
+
+
+void Insert_tuple_bus()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar  busnum[6];
+    varchar  busway[30];
+    varchar  bustime[12];
+    varchar  busterm[3];
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   
+
+   /* Register sql_error() as the error handler. */
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   clrscr();
+
+   /* 데이터 입력 */
+    gotoxy(20,5) ;
+
+    printf(" [ add bus data ]\n\n");   
+   
+    printf("          busnum:\n");
+    printf("\n");
+    printf("          busway:\n");
+    printf("\n");
+    printf("          bustime:\n");
+    printf("\n");
+    printf("          busterm:\n");
+
+ /* 버스번호 입력 */
+    gotoxy(20,7)  ; 
+    gets(busnum.arr);
+    busnum.len = strlen(busnum.arr);
+    
+   /* 버스 경로 입력 */
+    gotoxy(20,9)  ;
+    gets(busway.arr);
+    busway.len = strlen(busway.arr);
+
+   /* 배차 시간 입력 */
+    gotoxy(20,11) ;
+    gets(bustime.arr);
+    bustime.len = strlen(bustime.arr);
+
+   /* 배차 간격 입력 */
+    gotoxy(20,13) ;
+    gets(busterm.arr);
+    busterm.len = strlen(busterm.arr);
+
+ sprintf(dynstmt,"insert into bus values ( '%s', '%s', '%s', '%s')" ,busnum.arr, busway.arr, bustime.arr, busterm.arr);
+	
+    printf("stmt:%s\n", dynstmt);
+   /* 실행시킬 SQL 문장*/
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+    printf("Insert Success\n");
+    EXEC SQL COMMIT WORK ;
+}
+
+void Insert_tuple_busstop()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar stopnum[4];
+    varchar stopname[10];
+    
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   
+
+   /* Register sql_error() as the error handler. */
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   clrscr();
+
+   /* 데이터 입력 */
+    gotoxy(20,5) ;
+
+    printf(" [ add busstop ]\n\n");   
+   
+    printf("          busstopnum:\n");
+    printf("\n");
+    printf("          busstopname:\n");
+
+
+   /* 아이디 입력 */
+    gotoxy(22,7)  ; 
+    gets(stopnum.arr);
+    stopnum.len = strlen(stopnum.arr);
+    
+   /* 패스워드 입력 */
+
+    gotoxy(22,9)  ;
+    gets(stopname.arr);
+    stopname.len = strlen(stopname.arr);
+    sprintf(dynstmt,"insert into busstop values ( '%s', '%s')" ,stopnum.arr, stopname.arr);
+
+    printf("stmt:%s\n", dynstmt);
+   /* 실행시킬 SQL 문장*/
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+    printf("Insert Success\n");
+    EXEC SQL COMMIT WORK ;
+}
+
+void insert_tuple_review()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar reviewnum[3];
+    float score;
+    varchar departure[4];
+    varchar arrival[4];
+    varchar user_id[12];
+    varchar memo[100];
+
+    char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   
+
+   /* Register sql_error() as the error handler. */
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   clrscr();
+
+   /* 데이터 입력 */
+    gotoxy(20,5) ;
+
+    printf(" [ add data ]\n\n");   
+   
+    printf("          reviewnum:\n");
+    printf("\n");
+    printf("          score:\n");
+    printf("\n");
+    printf("          departure:\n");
+    printf("\n");
+    printf("          arrival:\n");
+    printf("\n");
+    printf("          user:\n");
+    printf("\n");
+    printf("          memo:\n");
+
+
+   /* 리뷰번호 입력 */
+    gotoxy(20,7)  ; 
+    gets(reviewnum.arr);
+    reviewnum.len = strlen(reviewnum.arr);
+    
+   /* 별점 입력 */
+    gotoxy(17,9)  ;
+    scanf("%f%*c", &score);
+
+   /* 출발지 입력 */
+    gotoxy(18,11) ;
+    gets(departure.arr);
+    departure.len = strlen(departure.arr);
+
+   /* 도착지 입력 */
+    gotoxy(18,13) ;
+    gets(arrival.arr);
+    arrival.len = strlen(arrival.arr);
+
+   /* 사용자 입력 */
+    gotoxy(18,15) ;
+    gets(user_id.arr);
+    user_id.len = strlen(user_id.arr);
+
+   /* 메모 입력 */
+    gotoxy(17,17) ;
+    gets(memo.arr);
+    memo.len = strlen(memo.arr);
+	
+
+    sprintf(dynstmt,"insert into review values ( '%s', %0.1f, '%s', '%s', '%s', '%s')" ,reviewnum.arr, score, departure.arr, arrival.arr, user_id.arr, memo.arr);
+
+    printf("stmt:%s\n", dynstmt);
+   /* 실행시킬 SQL 문장*/
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+
+    printf("Insert Success\n");
+    EXEC SQL COMMIT WORK ;
+}
+
+
+void select_tuple_person()
+{
+   EXEC SQL BEGIN DECLARE SECTION;
+    varchar user_id[12];
+    varchar user_pw[20];
+   char dynstmt[1000];
+   EXEC SQL END DECLARE SECTION;
+ 
+  char no_temp1[10];
+   char no_temp2[10];
+
+   /* Register sql_error() as the error handler. */
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+
+   /* 사용자 입력 */
+   printf("insert id:");
+   gets(no_temp1);
+
+    printf("insert pw:");
+   gets(no_temp2);
+
+   /* 실행시킬 SQL 문장*/
+   sprintf(dynstmt,"SELECT user_id, user_pw FROM person where user_id='%s' and user_pw='%s' \n",no_temp1, no_temp2); 
+
+   /* select 문장이 제대로 구성되어 있는지 화면에 찍어봄 */
+   //printf("SQL:%s\n", dynstmt);
+  
+          	EXEC SQL PREPARE S FROM :dynstmt ;
+           	EXEC SQL DECLARE c_cursor CURSOR FOR S ; 
+            EXEC SQL OPEN c_cursor ; 
+    for (;;)
+    {
+        EXEC SQL WHENEVER NOT FOUND DO break;
+        EXEC SQL FETCH c_cursor INTO :user_id, :user_pw;
+            user_id.arr[user_id.len] = '\0';
+	user_pw.arr[user_pw.len] = '\0';
+	//printf("user_id:%s user_pw:%s\n", user_id.arr, user_pw.arr);
+    }  
+
+    /* 전송된 투플의 수를 출력함. */
+   printf("match tuple user_id : %d\n", sqlca.sqlerrd[2]);
+   if (sqlca.sqlerrd[2]==1){
+	good=1;
+    }
+    EXEC SQL CLOSE c_cursor;
+}
+
+void delete_tuple_person()
+{
+
+EXEC SQL BEGIN DECLARE SECTION;
+varchar  v_user_id[12];
+    varchar  v_user_pw[20];
+   char dynstmt[1000];
+
+EXEC SQL END DECLARE SECTION;
+
+   char  no[100] ;
+   char  flag = 'n' ;
+
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   printf("id : !!\n") ;   
+   gets(no) ;
+
+    EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+   
+    sprintf(dynstmt,"SELECT user_id, user_pw  FROM person where user_id = '%s'", no) ;
+
+    //printf("stmt:%s\n", dynstmt);
+
+    EXEC SQL PREPARE SE FROM :dynstmt ;
+
+    EXEC SQL DECLARE c_cursors CURSOR FOR SE ; 
+
+    EXEC SQL OPEN c_cursors ; 
+
+    EXEC SQL WHENEVER NOT FOUND do break;
+    for(;;)
+    {
+        EXEC SQL FETCH c_cursors INTO :v_user_id, :v_user_pw ;
+
+
+	    v_user_id.arr[v_user_id.len] = '\0';
+	    v_user_pw.arr[v_user_pw.len] = '\0';
+
+	    printf( "id:%s pw:%s \n", v_user_id.arr, v_user_pw.arr);
+	sprintf(dynstmt,"delete from person where user_id = '%s' ", no);
+    //printf("stmt:%s\n", dynstmt);
+    EXEC SQL EXECUTE IMMEDIATE :dynstmt ; 
+    }
+	
+    printf("match tuple user_id : %d\n", sqlca.sqlerrd[2]);
+
+    EXEC SQL CLOSE c_cursors; 
+    EXEC SQL COMMIT WORK ; 
+}
+
+void delete_tuple_bus(){
+   EXEC SQL BEGIN DECLARE SECTION;
+	varchar  v_busnum[6];
+	varchar  v_busway[30];
+	varchar  v_bustime[12];
+	varchar  v_busterm[3];
+
+	char dynstmt[1000];
+   EXEC SQL END DECLARE SECTION;
+
+   char  no[100] ;
+   char  flag = 'n' ;
+
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   printf("busnum : !!\n") ;   
+   gets(no) ;
+
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+    sprintf(dynstmt,"SELECT busnum, busway, bustime, busterm  FROM bus where busnum = %s", no) ;
+
+    //printf("stmt:%s\n", dynstmt);
+
+    EXEC SQL PREPARE SB FROM :dynstmt ;
+
+    EXEC SQL DECLARE c_cursorB CURSOR FOR SB ; 
+
+    EXEC SQL OPEN c_cursorB ; 
+
+    EXEC SQL WHENEVER NOT FOUND do break;
+
+    for(;;)
+  {
+    EXEC SQL FETCH c_cursorB INTO :v_busnum, :v_busway, :v_bustime, :v_busterm ;
+
+	    v_busnum.arr[v_busnum.len] = '\0';
+	    v_busway.arr[v_busway.len] = '\0';
+	    v_bustime.arr[v_bustime.len] = '\0';
+	    v_busterm.arr[v_busterm.len] = '\0';
+
+	    printf("busnum:%s busway:%s bustime:%s busterm:%s \n", v_busnum.arr, v_busway.arr, v_bustime.arr, v_busterm.arr);
+	    sprintf(dynstmt,"delete from bus where busnum = '%s' ", no);
+
+     	  EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+	
+    }
+	
+    printf("match tuple busnum : %d\n", sqlca.sqlerrd[2]);
+
+    EXEC SQL CLOSE c_cursorB; 
+    EXEC SQL COMMIT WORK ; 
+}
+
+void delete_tuple_review(){
+EXEC SQL BEGIN DECLARE SECTION;
+    varchar  v_reviewnum[3];
+    float  v_score;
+    varchar  v_departure[4];
+    varchar  v_arrival[4];
+    varchar  v_user_id[12];
+    varchar  v_memo[100];
+
+   char dynstmt[1000];
+
+EXEC SQL END DECLARE SECTION;
+
+   char  no[100] ;
+   char  flag = 'n' ;
+
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   printf("reviewnum : !!\n") ;   
+   gets(no) ;
+
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+   sprintf(dynstmt,"SELECT reviewnum, score, departure, arrival, user_id, memo  FROM review where reviewnum = '%s'", no) ;
+
+    printf("stmt:%s\n", dynstmt);
+
+    EXEC SQL PREPARE SR FROM :dynstmt ;
+
+    EXEC SQL DECLARE c_cursorZ CURSOR FOR SR ; 
+
+    EXEC SQL OPEN c_cursorZ ; 
+
+    EXEC SQL WHENEVER NOT FOUND do break;
+    for(;;)
+    {
+        EXEC SQL FETCH c_cursorZ INTO :v_reviewnum, :v_score, :v_departure, :v_arrival, :v_user_id, v_memo ;
+
+	    v_reviewnum.arr[v_reviewnum.len] = '\0';
+	    v_score = '\0';
+	    v_departure.arr[v_departure.len] = '\0';
+	    v_arrival.arr[v_arrival.len] = '\0';
+	    v_user_id.arr[v_user_id.len] = '\0';
+	    v_memo.arr[v_memo.len] = '\0';
+
+	    printf("reviewnum:%s score:%0.1f departure:%s arrival:%s user:%s memo:%s \n", v_reviewnum.arr, v_score, v_departure.arr, v_arrival.arr, v_user_id.arr, v_memo.arr);
+	sprintf(dynstmt,"delete from review where reviewnum = '%s' ", no);
+	EXEC SQL EXECUTE IMMEDIATE :dynstmt ;
+	
+    }
+    printf("match tuple reviewnum : %d\n", sqlca.sqlerrd[2]);
+
+       EXEC SQL CLOSE c_cursorZ; 
+       EXEC SQL COMMIT WORK ; 
+}
+
+
+#define PAGE_NUM 5
+void select_tuple_bus()
+{
+/* --------------------------------------------------------------------------
+   Retrieve the current maximum employee number
+-------------------------------------------------------------------------- */
+EXEC SQL BEGIN DECLARE SECTION;
+   varchar busnum[6];
+   varchar busway[30];
+   varchar bustime[12];
+   varchar busterm[3];
+
+   char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   char no_temp[10];
+ 
+   int x, y, count=0, i ;
+
+
+   /* Register sql_error() as the error handler. */
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+
+   /* 사용자 입력 */
+   clrscr();
+
+   print_screen("scr_select_bus.txt");
+
+   gotoxy(22,12);
+   //printf("insert busnum:");
+   gets(no_temp); 
+   
+      
+   /* 실행시킬 SQL 문장*/
+   sprintf(dynstmt,"SELECT busnum, busway, bustime, busterm FROM bus where to_char(busnum) LIKE '%%%s%%'  ",no_temp); 
+
+   /* select 문장이 제대로 구성되어 있는지 화면에 찍어봄 */
+   //printf("dynstmt:%s\n", dynstmt);
+
+   EXEC SQL PREPARE SV FROM :dynstmt ;
+
+   /* cursor 선언 */
+   EXEC SQL DECLARE c_cursorv CURSOR FOR SV ; 
+
+   /* cursor open */
+   EXEC SQL OPEN c_cursorv ; 
+
+   EXEC SQL WHENEVER NOT FOUND DO break;
+
+   x = 24;
+   y = 16 ;
+
+   for (;;)
+    {
+        EXEC SQL FETCH c_cursorv INTO :busnum, :busway, :bustime, :busterm;
+
+   busnum.arr[busnum.len] = '\0';
+   busway.arr[busway.len] = '\0';
+   bustime.arr[bustime.len] = '\0';
+   busterm.arr[busterm.len] = '\0';
+   gotoxy(x,y);
+   printf(" |    %-3s  | %-12s |  %-12s |   %-3s  |", busnum.arr, busway.arr,bustime.arr,busterm.arr);
+   y++;
+   count++;
+   if( count == PAGE_NUM){
+      printf("\n                                  hit any key\n");
+      count = 0;
+      getch();
+
+           gotoxy(0,10); //이전 화면 부분 클리어
+           for(i= 0; i < PAGE_NUM; i++){
+      printf("                                                          \n");
+      }
+
+      y = 10 ;
+   }
+
+    }
+    printf("                              (END)\n");
+
+    /* Close the cursor. */
+   EXEC SQL CLOSE c_cursorv;
+
+   EXEC SQL COMMIT ;
+}
+
+void print_screen(char fname[])
+{
+   FILE *fp= fopen("C:\\Users\\kmj99\\Desktop\\test\\scr_select_bus.txt", "r" );
+   char line[100];
+   
+
+
+   if ( fp == NULL ){
+      printf("file open error\n");
+      getch();
+      exit(-1);
+   }
+   while(1)
+   {
+      if( fgets(line, 99, fp) == NULL){
+           break;
+      }
+      printf("%s", line);
+   }
+
+   fclose(fp);
+}
+#define PAGE_NUM 5
+void select_tuple_way()
+{
+/* --------------------------------------------------------------------------
+   Retrieve the current maximum employee number
+-------------------------------------------------------------------------- */
+EXEC SQL BEGIN DECLARE SECTION;
+   varchar busnum[6];
+   varchar busway[30];
+   varchar bustime[12];
+   varchar busterm[3];
+
+   char dynstmt[1000];
+EXEC SQL END DECLARE SECTION;
+
+   char no_temp1[10];
+   char no_temp2[10];
+
+   int x, y, count=0, i ;
+
+
+   /* Register sql_error() as the error handler. */
+   EXEC SQL WHENEVER SQLERROR DO sql_error("\7ORACLE ERROR:\n");
+
+
+   /* 사용자 입력 */
+   clrscr();
+
+   print_screens("scr_select_way.txt");
+
+   gotoxy(22,12);
+   //printf("insert chulbar:");
+   gets(no_temp1); 
+   
+   
+   gotoxy(57,12);
+   //printf("insert dochack:");
+   gets(no_temp2);
+      
+   
+   /* 실행시킬 SQL 문장*/
+   sprintf(dynstmt, "SELECT busnum, busway, bustime, busterm FROM bus where busway LIKE '%%%s%%' and busway LIKE '%%%s%%'  ",no_temp1, no_temp2);
+
+   /* select 문장이 제대로 구성되어 있는지 화면에 찍어봄 */
+   //printf("dynstmt:%s\n", dynstmt);
+
+   EXEC SQL PREPARE SR FROM :dynstmt ;
+
+   /* cursor 선언 */
+   EXEC SQL DECLARE c_cursorr CURSOR FOR SR ; 
+
+   /* cursor open */
+   EXEC SQL OPEN c_cursorr ; 
+
+   EXEC SQL WHENEVER NOT FOUND DO break;
+
+   x = 24;
+   y = 16 ;
+
+   for (;;)
+    {
+        EXEC SQL FETCH c_cursorr INTO :busnum, :busway, :bustime, :busterm;
+
+   busnum.arr[busnum.len] = '\0';
+   busway.arr[busway.len] = '\0';
+   bustime.arr[bustime.len] = '\0';
+   busterm.arr[busterm.len] = '\0';
+   gotoxy(x,y);
+   printf(" |    %-3s  | %-12s |  %-12s |   %-3s  |", busnum.arr, busway.arr,bustime.arr,busterm.arr);
+   y++;
+   count++;
+   if( count == PAGE_NUM){
+      printf("\n                                  hit any key\n");
+      count = 0;
+      getch();
+
+           gotoxy(0,10); //이전 화면 부분 클리어
+           for(i= 0; i < PAGE_NUM; i++){
+      printf("                                                          \n");
+      }
+
+      y = 10 ;
+   }
+
+    }
+    printf("                              (END)\n");
+
+    /* Close the cursor. */
+   EXEC SQL CLOSE c_cursorr;
+
+   EXEC SQL COMMIT ;
+}
+
+void print_screens(char fname[])
+{
+   FILE *fp= fopen("C:\\Users\\kmj99\\Desktop\\test\\scr_select_way.txt", "r" );
+   char line[100];
+   
+
+
+   if ( fp == NULL ){
+      printf("file open error\n");
+      getch();
+      exit(-1);
+   }
+   while(1)
+   {
+      if( fgets(line, 99, fp) == NULL){
+           break;
+      }
+      printf("%s", line);
+   }
+
+   fclose(fp);
+}
+
+
+void rtrim(char temp[])
+{
+	int i;
+
+	i = strlen(temp)-1;
+	
+	while (temp[i] == ' ' && i > 0 ){
+		i--;
+        }
+	temp[i+1]='\0';
+}
+
+
+
+
+
+/* --------------------------------------------------------------------------
+void sql_error()
+
+   errrpt prints the ORACLE error msg and number.
+-------------------------------------------------------------------------- */
+void sql_error(char *msg)
+{
+    char err_msg[128];
+    size_t buf_len, msg_len;
+
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+    printf("\n%s\n", msg);
+    buf_len = sizeof (err_msg);
+    sqlglm(err_msg, &buf_len, &msg_len);
+    printf("%.*s\n", msg_len, err_msg);
+
+    getch();
+    EXEC SQL ROLLBACK WORK ;
+    //exit(EXIT_FAILURE);
+}
+
+/*---------------  화면 커서 제어 함수 --------------------*/
+#define STD_HANDLE GetStdHandle(STD_OUTPUT_HANDLE)
+
+void gotoxy(int x, int y)
+{
+    COORD Cur= {(SHORT)x, (SHORT) y};
+
+    SetConsoleCursorPosition(STD_HANDLE, Cur);
+}
+
+void getxy(int *x, int *y)
+{
+    CONSOLE_SCREEN_BUFFER_INFO Buf ;
+
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Buf);
+    *x = (int)Buf.dwCursorPosition.X ;
+    *y = (int)Buf.dwCursorPosition.Y ;
+ 
+}
+
+void clrscr(void)
+{
+    COORD Cur= {0, 0};
+    unsigned long dwLen;
+
+    FillConsoleOutputCharacter(STD_HANDLE, ' ', 80*25, Cur, &dwLen);
+}
+
+/*---------------------------------------------------------*/
